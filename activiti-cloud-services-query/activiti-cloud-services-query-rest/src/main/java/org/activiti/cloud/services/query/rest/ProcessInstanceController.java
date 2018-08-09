@@ -20,13 +20,13 @@ import com.querydsl.core.types.Predicate;
 import org.activiti.cloud.alfresco.data.domain.AlfrescoPagedResourcesAssembler;
 import org.activiti.cloud.services.query.app.repository.EntityFinder;
 import org.activiti.cloud.services.query.app.repository.ProcessInstanceRepository;
-import org.activiti.cloud.services.query.model.ProcessInstance;
+import org.activiti.cloud.services.query.model.ProcessInstanceEntity;
 import org.activiti.cloud.services.query.resources.ProcessInstanceResource;
 import org.activiti.cloud.services.query.rest.assembler.ProcessInstanceResourceAssembler;
 import org.activiti.cloud.services.security.ActivitiForbiddenException;
-import org.activiti.cloud.services.security.AuthenticationWrapper;
-import org.activiti.cloud.services.security.SecurityPoliciesApplicationService;
-import org.activiti.cloud.services.security.SecurityPolicy;
+import org.activiti.cloud.services.security.SecurityPoliciesApplicationServiceImpl;
+import org.activiti.runtime.api.security.SecurityManager;
+import org.activiti.spring.security.policies.SecurityPolicyAccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,11 +56,11 @@ public class ProcessInstanceController {
 
     private ProcessInstanceResourceAssembler processInstanceResourceAssembler;
 
-    private AlfrescoPagedResourcesAssembler<ProcessInstance> pagedResourcesAssembler;
+    private AlfrescoPagedResourcesAssembler<ProcessInstanceEntity> pagedResourcesAssembler;
 
-    private SecurityPoliciesApplicationService securityPoliciesApplicationService;
+    private SecurityPoliciesApplicationServiceImpl securityPoliciesApplicationService;
 
-    private final AuthenticationWrapper authenticationWrapper;
+    private SecurityManager securityManager;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessInstanceController.class);
 
@@ -81,24 +81,24 @@ public class ProcessInstanceController {
     @Autowired
     public ProcessInstanceController(ProcessInstanceRepository processInstanceRepository,
                                      ProcessInstanceResourceAssembler processInstanceResourceAssembler,
-                                     AlfrescoPagedResourcesAssembler<ProcessInstance> pagedResourcesAssembler,
+                                     AlfrescoPagedResourcesAssembler<ProcessInstanceEntity> pagedResourcesAssembler,
                                      EntityFinder entityFinder,
-                                     SecurityPoliciesApplicationService securityPoliciesApplicationService,
-                                     AuthenticationWrapper authenticationWrapper) {
+                                     SecurityPoliciesApplicationServiceImpl securityPoliciesApplicationService,
+                                     SecurityManager securityManager) {
         this.processInstanceRepository = processInstanceRepository;
         this.processInstanceResourceAssembler = processInstanceResourceAssembler;
         this.pagedResourcesAssembler = pagedResourcesAssembler;
         this.entityFinder = entityFinder;
         this.securityPoliciesApplicationService = securityPoliciesApplicationService;
-        this.authenticationWrapper = authenticationWrapper;
+        this.securityManager = securityManager;
     }
 
     @RequestMapping(method = RequestMethod.GET)
-    public PagedResources<ProcessInstanceResource> findAll(@QuerydslPredicate(root = ProcessInstance.class) Predicate predicate,
+    public PagedResources<ProcessInstanceResource> findAll(@QuerydslPredicate(root = ProcessInstanceEntity.class) Predicate predicate,
                                                            Pageable pageable) {
 
         predicate = securityPoliciesApplicationService.restrictProcessInstanceQuery(predicate,
-                                                                                    SecurityPolicy.READ);
+                SecurityPolicyAccess.READ);
 
         return pagedResourcesAssembler.toResource(pageable,
                                                   processInstanceRepository.findAll(predicate,
@@ -109,16 +109,16 @@ public class ProcessInstanceController {
     @RequestMapping(value = "/{processInstanceId}", method = RequestMethod.GET)
     public ProcessInstanceResource findById(@PathVariable String processInstanceId) {
 
-        ProcessInstance processInstance = entityFinder.findById(processInstanceRepository,
-                                                                processInstanceId,
-                                                                "Unable to find task for the given id:'" + processInstanceId + "'");
+        ProcessInstanceEntity processInstanceEntity = entityFinder.findById(processInstanceRepository,
+                                                                            processInstanceId,
+                                                                            "Unable to find task for the given id:'" + processInstanceId + "'");
 
-        if (!securityPoliciesApplicationService.canRead(processInstance.getProcessDefinitionKey(),
-                                                        processInstance.getApplicationName())) {
-            LOGGER.debug("User " + authenticationWrapper.getAuthenticatedUserId() + " not permitted to access definition " + processInstance.getProcessDefinitionKey());
-            throw new ActivitiForbiddenException("Operation not permitted for " + processInstance.getProcessDefinitionKey());
+        if (!securityPoliciesApplicationService.canRead(processInstanceEntity.getProcessDefinitionKey(),
+                                                        processInstanceEntity.getServiceName())) {
+            LOGGER.debug("User " + securityManager.getAuthenticatedUserId() + " not permitted to access definition " + processInstanceEntity.getProcessDefinitionKey());
+            throw new ActivitiForbiddenException("Operation not permitted for " + processInstanceEntity.getProcessDefinitionKey());
         }
 
-        return processInstanceResourceAssembler.toResource(processInstance);
+        return processInstanceResourceAssembler.toResource(processInstanceEntity);
     }
 }

@@ -4,52 +4,54 @@ import java.util.List;
 
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.dsl.BooleanExpression;
-import org.activiti.cloud.services.query.model.QTask;
-import org.activiti.cloud.services.query.model.QVariable;
-import org.activiti.engine.UserGroupLookupProxy;
+
+import org.activiti.cloud.services.query.model.QTaskEntity;
+import org.activiti.cloud.services.query.model.QVariableEntity;
+import org.activiti.runtime.api.security.SecurityManager;
+import org.activiti.runtime.api.identity.UserGroupManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /*
  * Tested by RestrictTaskQueryIT
- * Applies permissions/restrictions to Task data (and Task Variables) based upon Candidate user/group logic
+ * Applies permissions/restrictions to TaskEntity data (and TaskEntity Variables) based upon Candidate user/group logic
  */
 @Component
 public class TaskLookupRestrictionService {
 
-    @Autowired(required = false)
-    private UserGroupLookupProxy userGroupLookupProxy;
+    @Autowired
+    private UserGroupManager userGroupManager;
 
     @Autowired
-    private AuthenticationWrapper authenticationWrapper;
+    private SecurityManager securityManager;
 
     @Value("${activiti.cloud.security.task.restrictions.enabled:true}")
     private boolean restrictionsEnabled;
 
     public Predicate restrictTaskQuery(Predicate predicate){
 
-        return restrictTaskQuery(predicate,QTask.task);
+        return restrictTaskQuery(predicate, QTaskEntity.taskEntity);
     }
 
 
     public Predicate restrictTaskVariableQuery(Predicate predicate){
 
-        QTask task = QVariable.variable.task;
+        QTaskEntity task = QVariableEntity.variableEntity.task;
 
         Predicate extendedPredicate = addAndConditionToPredicate(predicate,task.isNotNull());
 
         return restrictTaskQuery(extendedPredicate, task);
     }
 
-    private Predicate restrictTaskQuery(Predicate predicate, QTask task){
+    private Predicate restrictTaskQuery(Predicate predicate, QTaskEntity task){
 
         if (!restrictionsEnabled){
             return predicate;
         }
 
         //get authenticated user
-        String userId = authenticationWrapper.getAuthenticatedUserId();
+        String userId = securityManager.getAuthenticatedUserId();
 
         BooleanExpression restriction = null;
 
@@ -64,8 +66,8 @@ public class TaskLookupRestrictionService {
             //or one of user's group is candidate
 
             List<String> groups = null;
-            if (userGroupLookupProxy != null) {
-                groups = userGroupLookupProxy.getGroupsForCandidateUser(userId);
+            if (userGroupManager != null) {
+                groups = userGroupManager.getUserGroups(userId);
             }
             if(groups!=null && groups.size()>0) {
                 restriction = addOrConditionToExpression(restriction,task.taskCandidateGroups.any().groupId.in(groups));

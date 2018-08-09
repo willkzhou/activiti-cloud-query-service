@@ -16,29 +16,15 @@
 
 package org.activiti.cloud.starter.tests;
 
-import org.activiti.cloud.services.query.graphql.autoconfigure.EnableActivitiGraphQLQueryService;
-import org.activiti.cloud.services.query.notifications.config.EnableActivitiNotificationsGateway;
-import org.activiti.cloud.services.query.qraphql.ws.config.EnableActivitiGraphQLNotifications;
-import org.activiti.cloud.starter.configuration.EnableActivitiQuery;
+import org.activiti.cloud.starter.query.configuration.EnableActivitiQuery;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.data.web.config.EnableSpringDataWebSupport;
 
 @SpringBootApplication
 @EnableActivitiQuery
-@EnableActivitiGraphQLNotifications
-@EnableActivitiNotificationsGateway
-@EnableActivitiGraphQLQueryService
-@EnableSpringDataWebSupport
-@ComponentScan({"org.activiti.cloud.services.query.app",
-        "org.activiti.cloud.services.query.events",
-        "org.activiti.cloud.services.query.rest",
-        "org.activiti.cloud.services.security",
-        "org.activiti.cloud.starters",
-        "org.activiti.cloud.starter",
-        "org.activiti.cloud.services.identity",
-        "org.activiti.cloud.alfresco"})
+@ComponentScan({"org.activiti.cloud.starters.test",
+        "org.activiti.cloud.services.test.identity.keycloak.interceptor"})
 public class Application {
 
     public static void main(String[] args) {
